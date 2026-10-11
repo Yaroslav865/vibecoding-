@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Academy - Interactive Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.0.9/full/pyodide.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        .code-editor {
+            font-family: 'Fira Code', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #2d2d2d;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+
+    <!-- Header -->
+    <header class="border-b border-gray-800 p-4 bg-gray-900 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-green-500">Python<span class="text-white">Academy</span></h1>
+            <div id="progress-container" class="text-sm">
+                Progress: <span id="progress-percent">0%</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Left Side: Instructions -->
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar">
+            <div id="lesson-content">
+                <h2 class="text-2xl font-bold mb-4">Загрузка курса...</h2>
+                <p>Пожалуйста, подождите, пока инициализируется Python движок.</p>
+            </div>
+            <div class="mt-8 border-t border-gray-700 pt-4">
+                <button id="prev-btn" class="bg-gray-700 px-4 py-2 rounded disabled:opacity-50" disabled>Назад</button>
+                <button id="next-btn" class="bg-green-600 px-4 py-2 rounded ml-2">Следующий урок</button>
+            </div>
+        </div>
+
+        <!-- Right Side: Editor & Console -->
+        <div class="flex flex-col gap-4">
+            <div class="flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col shadow-xl">
+                <div class="bg-gray-700 px-4 py-2 text-xs font-mono flex justify-between">
+                    <span>main.py</span>
+                    <span id="status-msg" class="text-green-400">Ready</span>
+                </div>
+                <textarea id="code-editor" class="flex-1 p-4 code-editor outline-none resize-none" spellcheck="false"></textarea>
+                <div class="p-4 bg-gray-900 border-t border-gray-700 flex justify-between items-center">
+                    <button id="run-btn" class="bg-green-600 hover:bg-green-700 px-6 py-2 rounded font-bold transition">Запустить (Run)</button>
+                    <div id="feedback" class="text-sm font-medium"></div>
+                </div>
+            </div>
+            
+            <!-- Console Output -->
+            <div class="h-48 bg-black p-4 rounded-lg border border-gray-700 font-mono text-sm overflow-y-auto custom-scrollbar" id="console-output">
+                <span class="text-gray-500"># Output will appear here...</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /** COURSE DATA **/
+        const courseData = [
+            {
+                title: "Привет, Мир!",
+                description: "Добро пожаловать! Первая задача — вывести текст на экран. В Python для этого используется функция `print()`.",
+                task: "Выведите фразу 'Hello World' в консоль.",
+                initialCode: "print('Hello World')",
+                test: (output) => output.includes("Hello World"),
+                hint: "Используйте print('текст')"
+            },
+            {
+                title: "Переменные",
+                description: "Переменные позволяют хранить данные. Чтобы создать переменную, напишите имя, знак `=` и значение.",
+                task: "Создайте переменную `name` со значением 'Alex' и выведите её.",
+                initialCode: "# Создайте переменную name\n# Выведите её\nname = 'Alex'\nprint(name)",
+                test: (output) => output.includes("Alex"),
+                hint: "Например: name = 'ВашеИмя'"
+            },
+            {
+                title: "Типы данных",
+                description: "В Python есть числа (int, float) и строки (str).",
+                task: "Создайте две переменные: `a = 5` и `b = 10`. Выведите их сумму.",
+                initialCode: "# Напишите код здесь\n",
+                test: (output) => output.includes("15"),
+                hint: "Сложите переменные a и b"
+            },
+            {
+                title: "Условный оператор If",
+                description: "Если условие верно, выполняется блок кода. Используйте `if`, `elif` и `else`.",
+                task: "Напишите программу, которая проверяет, больше ли число 10. Если да — выведите 'Big', если нет — 'Small'.",
+                initialCode: "x = 15\nif x > 10:\n    print('Big')\nelse:\n    print('Small')",
+                test: (output) => output.includes("Big"),
+                hint: "Используйте if x > 10:"
+            },
+            {
+                title: "Цикл For",
+                description: "Циклы нужны для повторения действий. `range(5)` создает последовательность чисел от 0 до 4.",
+                task: "Используя цикл for, выведите числа от 1 до 5.",
+                initialCode: "# Напишите цикл здесь\n",
+                test: (output) => output.includes("1") && output.includes("5"),
+                hint: "for i in range(1, 6): print(i)"
+            },
+            {
+                title: "Списки (Lists)",
+                description: "Списки хранят упорядоченные элементы. Доступ к ним идет по индексу (начиная с 0).",
+                task: "Создайте список `fruits` с элементами 'apple', 'banana'. Выведите второй элемент (banana).",
+                initialCode: "# Список\n# Вывод второго элемента\n",
+                test: (output) => output.includes("banana"),
+                hint: "fruits = ['apple', 'banana']\nprint(fruits[1])"
+            },
+            {
+                title: "Функции",
+                description: "Функции — это блоки кода, которые можно вызывать многократно.",
+                task: "Напишите функцию `greet(name)`, которая возвращает 'Hello, ' + name. Вызовите её с именем 'Python'.",
+                initialCode: "def greet(name):\n    # Ваше решение\n    pass\n\nprint(greet('Python'))",
+                test: (output) => output.includes("Hello, Python"),
+                hint: "Используйте return"
+            }
+        ];
+
+        /** APP LOGIC **/
+        let currentLesson = 0;
+        let pyodide;
+
+        const elements = {
+            lessonContent: document.getElementById('lesson-content'),
+            editor: document.getElementById('code-editor'),
+            console: document.getElementById('console-output'),
+            feedback: document.getElementById('feedback'),
+            status: document.getElementById('status-msg'),
+            progress: document.getElementById('progress-percent'),
+            prevBtn: document.getElementById('prev-btn'),
+            nextBtn: document.getElementById('next-btn'),
+            runBtn: document.getElementById('run-btn')
+        };
+
+        // Initialize Pyodide
+        async function initPyodide() {
+            elements.status.innerText = "Loading Python...";
+            pyodide = await _pyodide.pyodide.load_pyodide({
+                prepare_js: true
+            });
+            elements.status.innerText = "Ready";
+            loadLesson(0);
+        }
+
+        function loadLesson(index) {
+            currentLesson = index;
+            const lesson = courseData[index];
+            
+            elements.lessonContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-2 text-green-400">${lesson.title}</h2>
+                <p class="text-gray-300 mb-4 leading-relaxed">${lesson.description}</p>
+                <div class="bg-blue-900/30 p-4 rounded border border-blue-800">
+                    <p class="font-bold mb-1">Задание:</p>
+                    <p>${lesson.task}</p>
+                </div>
+                <p class="mt-4 text-sm text-gray-500 italic">Подсказка: ${lesson.hint}</p>
+            `;
+
+            elements.editor.value = lesson.initialCode;
+            elements.feedback.innerText = "";
+            elements.feedback.className = "text-sm font-medium text-gray-400";
+            elements.console.innerHTML = '<span class="text-gray-500"># Output...</span>';
+            
+            updateProgress();
+            
+            elements.prevBtn.disabled = index === 0;
+            elements.nextBtn.innerText = index === courseData.length - 1 ? "Завершить курс" : "Следующий урок";
+        }
+
+        function updateProgress() {
+            const percent = Math.round(((currentLesson + 1) / courseData.length) * 100);
+            elements.progress.innerText = `${percent}%`;
+        }
+
+        async function runCode() {
+            if (!pyodide) return;
+            
+            elements.status.innerText = "Running...";
+            elements.feedback.innerText = "Running...";
+            elements.feedback.className = "text-sm font-medium text-yellow-400";
+            
+            try {
+                // Redirecting stdout to capture prints
+                pyodide.runPython(`
+                    import sys
+                    import io
+                    sys.stdout = io.StringIO()
+                `);
+
+                await pyodide.runPythonAsync(elements.editor.value);
+                
+                const stdout = pyodide.runPython("sys.stdout.getvalue()");
+                elements.console.innerHTML = stdout || "<i>(No output)</i>";
+                
+                // Verification
+                const lesson = courseData[currentLesson];
+                if (lesson.test(stdout)) {
+                    elements.feedback.innerText = "✓ Успешно!";
+                    elements.feedback.className = "text-sm font-medium text-green-400";
+                    elements.status.innerText = "Ready";
+                } else {
+                    elements.feedback.innerText = "✗ Ошибка в результате";
+                    elements.feedback.className = "text-sm font-medium text-red-400";
+                    elements.status.innerText = "Ready";
+                }
+            } catch (err) {
+                elements.console.innerHTML = `<span class="text-red-500">${err}</span>`;
+                elements.feedback.innerText = "Syntax Error";
+                elements.feedback.className = "text-sm font-medium text-red-500";
+                elements.status.innerText = "Ready";
+            }
+        }
+
+        /** EVENT LISTENERS **/
+        elements.runBtn.addEventListener('click', runCode);
+        
+        elements.nextBtn.addEventListener('click', () => {
+            if (currentLesson < courseData.length - 1) {
+                loadLesson(currentLesson + 1);
+            } else {
+                alert("Поздравляем! Вы прошли курс.");
+            }
+        });
+
+        elements.prev
+
+                

@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Zero to Hero — FreeCodeCamp аналог</title>
+    <style>
+        :root {
+            --bg-main: #1e1e1e;
+            --bg-sidebar: #252526;
+            --text-main: #cccccc;
+            --text-muted: #9cdcfe;
+            --accent: #007acc;
+            --success: #4ec9b0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
+            line-height: 1.6;
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        #sidebar h2 { 
+            color: var(--accent); 
+            margin-bottom: 20px; 
+            font-size: 1.4rem; 
+            text-align: center;
+        }
+        .lesson-list { list-style: none; }
+        .lesson-item { 
+            margin-bottom: 10px; 
+            padding: 10px 15px; 
+            border-radius: 6px; 
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .lesson-item:hover { background-color: #333; }
+        .lesson-item.active { background-color: var(--accent); color: #000; }
+        .lesson-item.completed::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+        }
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        #lesson-view {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: none;
+        }
+        #lesson-view h1 { color: var(--accent); margin-bottom: 15px; }
+        #lesson-view pre[class*="language-"] {
+            background-color: #111 !important;
+            border-radius: 8px;
+            padding: 20px !important;
+            overflow-x: auto;
+        }
+        #lesson-view code { font-size: 0.95rem; }
+        #controls {
+            padding: 15px 30px;
+            background-color: #2d2d2d;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #prev-btn, #next-btn {
+            padding: 10px 20px;
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #prev-btn:disabled, #next-btn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        #editor-container {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+        }
+        #code-editor {
+            flex-grow: 1;
+            border-top: 1px solid #333;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+        }
+        #run-btn {
+            padding: 12px;
+            background-color: var(--success);
+            color: #000;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #output {
+            height: 200px;
+            background-color: #000;
+            color: #0f0;
+            padding: 15px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+        }
+        #welcome-screen {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+        }
+        #welcome-screen h1 { font-size: 2.5rem; margin-bottom: 15px; color: var(--accent); }
+        #welcome-screen p { font-size: 1.2rem; color: var(--text-muted); max-width: 600px; margin-bottom: 30px; }
+        #start-btn {
+            padding: 15px 40px;
+            background-color: var(--accent);
+            color: #000;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            #sidebar { 
+                width: 220px; 
+                padding: 15px 10px; 
+                position: absolute;
+                z-index: 10;
+                left: -230px;
+                top: 0;
+                transition: left 0.3s;
+                height: 100vh;
+            }
+            #sidebar.open { left: 0; }
+            #menu-toggle {
+                display: block;
+                position: absolute;
+                top: 15px;
+                left: 15px;
+                background: var(--accent);
+                border: none;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                cursor: pointer;
+                z-index: 11;
+            }
+            #menu-toggle span {
+                display: block;
+                height: 2px;
+                background: #000;
+                margin: 7px 0;
+            }
+            #main-content { margin-left: 0; }
+            #lesson-view, #editor-container { padding: 20px; }
+            #controls { padding: 15px 20px; }
+        }
+        @media (max-width: 480px) {
+            #welcome-screen h1 { font-size: 2rem; }
+            #welcome-screen p { font-size: 1rem; }
+        }
+    </style>
+    <!-- Подсветка синтаксиса Prism.js -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dark.min.css" rel="stylesheet" />
+</head>
+<body>
+    <button id="menu-toggle" aria-label="Открыть меню"><span></span><span></span><span></span></button>
+    
+    <div id="sidebar">
+        <h2>🐍 Python Zero to Hero</h2>
+        <ul class="lesson-list" id="lesson-list">
+            <!-- Уроки будут сгенерированы скриптом -->
+        </ul>
+    </div>
+
+    <div id="main-content">
+        <div id="welcome-screen">
+            <h1>Добро пожаловать на курс Python</h1>
+            <p>Это бесплатный интерактивный курс. Слева — навигация по урокам. Каждый урок содержит теорию, примеры кода, которые можно запустить, и практическое задание в редакторе.</p>
+            <button id="start-btn">Начать обучение</button>
+        </div>
+
+        <div id="lesson-view"></div>
+
+        <div id="editor-container">
+            <div id="code-editor" contenteditable="true" spellcheck="false">
+print("Привет, мир!")
+x = 10
+y = 20
+print(f"Сумма: {x + y}")
+            </div>
+            <button id="run-btn">▶️ Запустить код</button>
+            <div id="output"></div>
+        </div>
+
+        <div id="controls">
+            <button id="prev-btn">◀️ Назад</button>
+            <button id="next-btn">Вперед ▶️</button>
+        </div>
+    </div>
+
+    <!-- Pyodide (Python в браузере) -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+    <!-- Prism.js для подсветки синтаксиса -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <script>
+        const lessons = [
+            {
+                id: 0, title: "Введение", 
+                content: `<h1>Урок 1: Введение в Python</h1>
+                <p>Python — это мощный и простой в изучении язык программирования. Он использует отступы для определения блоков кода.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">print("Привет, GigaChat!")
+name = "Студент"
+print(f"Добро пожаловать, {name}!")</code></pre>
+                <p><strong>Задание:</strong> Измените код в редакторе справа так, чтобы он выводил ваше имя.</p>`
+            },
+            {
+                id: 1, title: "Переменные и типы", 
+                content: `<h1>Урок 2: Переменные и типы данных</h1>
+                <p>В Python не нужно явно указывать тип переменной. Основные типы: int (целое), float (дробное), str (строка), bool (булево).</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">age = 25
+price = 19.99
+is_active = True
+message = "Ваш баланс: " + str(price)
+print(message)</code></pre>
+                <p><strong>Задание:</strong> Создайте переменную <code>city</code> со значением "Москва" и выведите её.</p>`
+            },
+            {
+                id: 2, title: "Условные операторы", 
+                content: `<h1>Урок 3: Условные операторы (if, else)</h1>
+                <p>Позволяют выполнять код при выполнении условий.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">temperature = 15
+if temperature > 25:
+    print("Жарко")
+elif temperature > 10:
+    print("Тепло")
+else:
+    print("Холодно")</code></pre>
+                <p><strong>Задание:</strong> Напишите условие: если переменная <code>score</code> больше 90, вывести "Отлично".</p>`
+            },
+            {
+                id: 3, title: "Циклы", 
+                content: `<h1>Урок 4: Циклы (for, while)</h1>
+                <p>Циклы нужны для повторения действий.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python"># Цикл for
+for i in range(5):
+    print(f"Итерация {i}")
+
+# Цикл while
+count = 0
+while count < 3:
+    print(f"Счетчик: {count}")
+    count += 1</code></pre>
+                <p><strong>Задание:</strong> Выведите числа от 1 до 10 с помощью цикла <code>for</code>.</p>`
+            },
+            {
+                id: 4, title: "Списки", 
+                content: `<h1>Урок 5: Списки (Lists)</h1>
+                <p>Списки — это упорядоченные изменяемые коллекции.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">fruits = ["яблоко", "банан", "вишня"]
+fruits.append("груша")
+print(fruits[0]) # Первый элемент
+print(len(fruits)) # Длина списка</code></pre>
+                <p><strong>Задание:</strong> Создайте список из трех городов России и выведите второй город.</p>`
+            },
+            {
+                id: 5, title: "Функции", 
+                content: `<h1>Урок 6: Функции</h1>
+                <p>Функции помогают переиспользовать код.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">def greet(name):
+    return f"Привет, {name}!"
+
+result = greet("Алексей")
+print(result)</code></pre>
+                <p><strong>Задание:</strong> Напишите функцию <code>sum(a, b)</code>, которая возвращает сумму двух чисел.</p>`
+            },
+            {
+                id: 6, title: "Словари", 
+                content: `<h1>Урок 7: Словари (Dictionaries)</h1>
+                <p>Словари хранят данные в формате ключ-значение.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">user = {
+    "name": "Иван",
+    "age": 30,
+    "is_admin": False
+}
+print(user["name"])
+user["age"] = 31
+print(user)</code></pre>
+                <p><strong>Задание:</strong> Создайте словарь автомобиля с ключами <code>brand</code> и <code>year</code>.</p>`
+            },
+            {
+                id: 7, title: "Обработка ошибок", 
+                content: `<h1>Урок 8: Обработка ошибок (try/except)</h1>
+                <p>Позволяет программе не "падать" при ошибках.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python">try:
+    number = int(input("Введите число: "))
+    print(f"Вы ввели: {number}")
+except ValueError:
+    print("Это не число!")</code></pre>
+                <p><strong>Задание:</strong> Оберните деление <code>10 / 0</code> в блок <code>try/except</code> для перехвата <code>ZeroDivisionError</code>.</p>`
+            },
+            {
+                id: 8, title: "Работа с файлами", 
+                content: `<h1>Урок 9: Работа с файлами</h1>
+                <p>Чтение и запись данных на диск.</p>
+                <h3>Пример кода:</h3>
+                <pre><code class="language-python"># Запись
+with open("data.txt", "w") as f:
+    f.write("Привет из Python")
+
+# Чтение
+with open("data.txt", "r") as f:
+    content = f.read()
+    print(content)</code></pre>
+                <p><strong>Задание:</strong> Напишите строку "Курс завершен" в файл <code>report.txt</code>.</p>`
+            },
+            {
+                id: 9, title: "Итоговый проект", 
+                content: `<h1>Урок 10: Итоговый проект</h1>
+                <p>Напишите простую программу "Список дел" (To-Do List). Она должна уметь:
+                <ol>
+                    <li>Добавлять задачу в список.</li>
+                    <li>Выводить все задачи с нумерацией.</li>
+                    <li>Удалять задачу по номеру.</li>
+                </ol>
+                Используйте списки и цикл <code>while True</code> для меню.</p>
+                <p><strong>Задание:</strong> Реализуйте базовый функционал в редакторе.</p>`
+            }
+        ];
+
+        let currentLesson = 0;
+        let pyodide = null;
+        const progress = JSON.parse(localStorage.getItem('py_progress') || '{}');
+
+        const lessonList = document.getElementById('lesson-list');
+        const lessonView = document.getElementById('lesson-view');
+        const editorContainer = document.getElementById('editor-container');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const codeEditor = document.getElementById('code-editor');
+        const output = document.getElementById('output');
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const startBtn = document.getElementById('start-btn');
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+
+        function renderLessons() {
+            lessonList.innerHTML = '';
+            lessons.forEach(lesson => {
+                const li = document.createElement('li');
+                li.className = 'lesson-item';
+                li.textContent = lesson.title;
+                if (progress[lesson.id]) {
+                    li.classList.add('completed');
+                }
+                if (lesson.id === currentLesson) {
+                    li.classList.add('active');
+                }
+                li.addEventListener('click', () => goToLesson(lesson.id));
+                lessonList.appendChild(li);
+            });
+        }
+
+        function renderLesson() {
+            lessonView.innerHTML = lessons[currentLesson].content;
+            Prism.highlightAll();
+            lessonView.style.display = 'block';
+            editorContainer.style.display = 'none';
+            welcomeScreen.style.display = 'none';
+            updateButtons();
+            renderLessons();
+            saveProgress();
+        }
+
+        function updateButtons() {
+            prevBtn.disabled = currentLesson === 0;
+            nextBtn.disabled = currentLesson === lessons.length - 1;
+        }
+
+        function goToLesson(index) {
+            currentLesson = index;
+            renderLesson();
+        }
+
+        function saveProgress() {
+            progress[currentLesson] = true;
+            localStorage.setItem('py_progress', JSON.stringify(progress));
+            renderLessons();
+        }
+
+        async function initPyodide() {
+            output.textContent = 'Загружается Python...';
+            pyodide = await loadPyodide();
+            output.textContent = 'Python готов к работе!';
+        }
+
+        async function runCode() {
+            if (!pyodide) return;
+            const userCode = codeEditor.innerText;
+            output.innerHTML = '';
+            try {
+                let result = await pyodide.runPythonAsync(`
+import sys, io
+sys.stdout = io.StringIO()
+${userCode}
+output = sys.stdout.getvalue()
+sys.stdout = sys.__stdout__
+output
+                `);
+                if (result) {
+                    output.textContent = result;
+                }
+                saveProgress();
+            } catch (err) {
+                output.textContent = err.toString();
+            }
+        }
+
+        // Обработчики событий
+        nextBtn.addEventListener('click', () => goToLesson(currentLesson + 1));
+        prevBtn.addEventListener('click', () => goToLesson(currentLesson - 1));
+        startBtn.addEventListener('click', renderLesson);
+        document.getElementById('run-btn').addEventListener('click', runCode);
+        menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+
+        // Инициализация
+        initPyodide();
+        renderLessons();
+
+        // Горячие клавиши
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                runCode();
+            }
+            if (e.key === 'ArrowRight' && !nextBtn.disabled) {
+                goToLesson(currentLesson + 1);
+            }
+            if (e.key === 'ArrowLeft' && !prevBtn.disabled) {
+                goToLesson(currentLesson - 1);
+            }
+        });
+    </script>
+</body>
+</html>
